@@ -6,6 +6,8 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require("path");
 const cookieParser = require('cookie-parser');
+const axios = require('axios'); // Added axios import
+const fs = require('fs'); // Added fs import
 const authRoute = require('./routes/auth');
 const userRoute = require('./routes/users');
 const postRoute = require('./routes/posts');
@@ -24,13 +26,13 @@ const connectDB = async () => {
         console.log("Database connected successfully!");
     } catch (err) {
         console.error("Database connection error: ", err);
+        process.exit(1); // Exit process on database connection error
     }
 };
 
 // Middlewares
 app.use(express.json());
 app.use("/images", express.static(path.join(__dirname, "/images")));
-
 app.use(cors({ origin: "https://blogiq.netlify.app", credentials: true }));
 app.use(cookieParser());
 
@@ -101,9 +103,9 @@ app.post("/api/upload-url", async (req, res) => {
     }
 });
 
-
 // Start the server
-app.listen(process.env.PORT, () => {
+const PORT = process.env.PORT || 5000; // Fallback to port 5000 if process.env.PORT is undefined
+app.listen(PORT, () => {
     connectDB();
-    console.log("Server is running on port " + process.env.PORT);
+    console.log(`Server is running on port ${PORT}`);
 });
