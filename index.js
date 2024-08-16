@@ -45,7 +45,12 @@ app.use("/api/comments", commentRoute);
 // Image upload configuration
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, "images");
+        // Ensure the images directory exists
+        const dir = path.join(__dirname, 'images');
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -58,9 +63,14 @@ const upload = multer({ storage: storage });
 // Route to upload file directly
 app.post("/api/upload", upload.single("image"), (req, res) => {
     try {
-        console.log(req.file);
-        res.status(200).json("Image has been uploaded successfully!");
+        console.log("File received:", req.file); // Debugging log
+        if (req.file) {
+            res.status(200).json("Image has been uploaded successfully!");
+        } else {
+            res.status(400).json("No file uploaded.");
+        }
     } catch (err) {
+        console.error("Error during file upload:", err); // Log the error
         res.status(500).json({ error: "Image upload failed", details: err.message });
     }
 });
@@ -74,6 +84,8 @@ app.post("/api/upload-url", async (req, res) => {
     }
 
     try {
+        console.log("Image URL received:", imageUrl); // Debugging log
+
         // Download the image from the URL
         const response = await axios({
             url: imageUrl,
@@ -86,23 +98,27 @@ app.post("/api/upload-url", async (req, res) => {
         const fileName = `${uniqueSuffix}${fileExtension}`;
         const filePath = path.join(__dirname, "images", fileName);
 
+        console.log("Saving file to:", filePath); // Debugging log
+
         // Save the image to the images directory
         const writer = fs.createWriteStream(filePath);
         response.data.pipe(writer);
 
         writer.on("finish", () => {
+            console.log("File saved successfully."); // Debugging log
             res.status(200).json({ message: "Image has been uploaded successfully!", fileName: fileName });
         });
 
         writer.on("error", (err) => {
+            console.error("Error saving file:", err); // Log the error
             res.status(500).json({ error: "Image upload failed", details: err.message });
         });
 
     } catch (err) {
+        console.error("Error downloading image:", err); // Log the error
         res.status(500).json({ error: "Image download failed", details: err.message });
     }
 });
-
 // Start the server
 const PORT = process.env.PORT || 5000; // Fallback to port 5000 if process.env.PORT is undefined
 app.listen(PORT, () => {
