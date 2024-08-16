@@ -41,6 +41,29 @@ app.use("/api/posts", postRoute);
 app.use("/api/comments", commentRoute);
 
 // Image upload configuration
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, "images");
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, `${uniqueSuffix}-${file.originalname}`);
+    }
+});
+
+const upload = multer({ storage: storage });
+
+// Route to upload file directly
+app.post("/api/upload", upload.single("image"), (req, res) => {
+    try {
+        console.log(req.file);
+        res.status(200).json("Image has been uploaded successfully!");
+    } catch (err) {
+        res.status(500).json({ error: "Image upload failed", details: err.message });
+    }
+});
+
+// Route to upload image via URL
 app.post("/api/upload-url", async (req, res) => {
     const { imageUrl } = req.body;
 
