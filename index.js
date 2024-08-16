@@ -30,6 +30,7 @@ const connectDB = async () => {
 // Middlewares
 app.use(express.json());
 app.use("/images", express.static(path.join(__dirname, "/images")));
+
 app.use(cors({ origin: "https://blogiq.netlify.app", credentials: true }));
 app.use(cookieParser());
 
@@ -40,25 +41,43 @@ app.use("/api/posts", postRoute);
 app.use("/api/comments", commentRoute);
 
 // Image upload configuration
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, "images");
-    },
-    filename: (req, file, cb) => {
+app.post("/api/upload-url", async (req, res) => {
+    const { imageUrl } = req.body;
+
+    if (!imageUrl) {
+        return res.status(400).json({ error: "No image URL provided" });
+    }
+
+    try {
+        // Download the image from the URL
+        const response = await axios({
+            url: imageUrl,
+            responseType: 'stream',
+        });
+
+        // Generate a unique file name
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, `${uniqueSuffix}-${file.originalname}`);
+        const fileExtension = path.extname(imageUrl);
+        const fileName = `${uniqueSuffix}${fileExtension}`;
+        const filePath = path.join(__dirname, "images", fileName);
+
+        // Save the image to the images directory
+        const writer = fs.createWriteStream(filePath);
+        response.data.pipe(writer);
+
+        writer.on("finish", () => {
+            res.status(200).json({ message: "Image has been uploaded successfully!", fileName: fileName });
+        });
+
+        writer.on("error", (err) => {
+            res.status(500).json({ error: "Image upload failed", details: err.message });
+        });
+
+    } catch (err) {
+        res.status(500).json({ error: "Image download failed", details: err.message });
     }
 });
 
-const upload = multer({ storage: storage });
-app.post("/api/upload", upload.single("file"), (req, res) => {
-    try {
-        console.log(req.file);
-        res.status(200).json("Image has been uploaded successfully!");
-    } catch (err) {
-        res.status(500).json({ error: "Image upload failed", details: err.message });
-    }
-});
 
 // Start the server
 app.listen(process.env.PORT, () => {
